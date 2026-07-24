@@ -6,10 +6,6 @@ import os
 
 
 def load_csv_data():
-    """
-    Prompts the user for a filename, checks if it exists,
-    and extracts all fields into a list of dictionaries.
-    """
     filename = input(
         "Enter the name of the CSV file to process (e.g., grades.csv): "
     )
@@ -24,18 +20,107 @@ def load_csv_data():
         with open(filename, mode='r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
 
+            if reader.fieldnames is None:
+                print("Error: CSV file is empty or cannot be read.")
+                sys.exit(1)
+
+            required_columns = {'assignment', 'group', 'score', 'weight'}
+            missing_columns = required_columns - set(reader.fieldnames)
+
+            if missing_columns:
+                print(
+                    f"Error: CSV is missing required columns: "
+                    f"{', '.join(sorted(missing_columns))}"
+                )
+                print(
+                    f"Expected columns: {', '.join(sorted(required_columns))}"
+                )
+                print(f"Found columns: {', '.join(reader.fieldnames)}")
+                sys.exit(1)
+
+            row_count = 0
             for row in reader:
+                row_count += 1
+
+                if all(value.strip() == '' for value in row.values()):
+                    print(f"Warning: Skipping empty row {row_count}.")
+                    continue
+
+                if not row.get('assignment', '').strip():
+                    print(
+                        f"Error: Row {row_count} has empty 'assignment' field."
+                    )
+                    sys.exit(1)
+
+                if not row.get('group', '').strip():
+                    print(
+                        f"Error: Row {row_count} has empty 'group' field."
+                    )
+                    sys.exit(1)
+
+                if not row.get('score', '').strip():
+                    print(
+                        f"Error: Row {row_count} has empty 'score' field."
+                    )
+                    sys.exit(1)
+
+                if not row.get('weight', '').strip():
+                    print(
+                        f"Error: Row {row_count} has empty 'weight' field."
+                    )
+                    sys.exit(1)
+                try:
+                    score = float(row['score'])
+                except ValueError:
+                    print(
+                        f"Error: Row {row_count} has invalid score "
+                        f"'{row['score']}'. Must be a valid number."
+                    )
+                    sys.exit(1)
+
+                try:
+                    weight = float(row['weight'])
+                except ValueError:
+                    print(
+                        f"Error: Row {row_count} has invalid weight "
+                        f"'{row['weight']}'. Must be a valid number."
+                    )
+                    sys.exit(1)
+
+                # Validate group is either 'Formative' or 'Summative'
+                group = row['group'].strip().lower()
+                if group not in ('formative', 'summative'):
+                    print(
+                        f"Error: Row {row_count} has invalid group "
+                        f"'{row['group']}'. Must be 'Formative' or "
+                        f"'Summative'."
+                    )
+                    sys.exit(1)
+
                 assignments.append({
-                    'assignment': row['assignment'],
-                    'group': row['group'],
-                    'score': float(row['score']),
-                    'weight': float(row['weight'])
+                    'assignment': row['assignment'].strip(),
+                    'group': row['group'].strip(),
+                    'score': score,
+                    'weight': weight
                 })
+
+        if not assignments:
+            print(
+                "Error: No valid assignment data found in CSV file. "
+                "File is empty or contains only headers."
+            )
+            sys.exit(1)
 
         return assignments
 
+    except csv.Error as e:
+        print(f"CSV parsing error: {e}")
+        sys.exit(1)
+    except IOError as e:
+        print(f"File I/O error: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"An error occurred while reading the file: {e}")
+        print(f"An unexpected error occurred while reading the file: {e}")
         sys.exit(1)
 
 
